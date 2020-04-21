@@ -42,7 +42,7 @@ def get_fpaths(dpath):
     return fpaths
 
 
-def _worker_loop(work_queue, result_queue, timeouts=[5, 5, 5, 10]):
+def _worker_loop(work_queue, result_queue, timeouts):
     while True:
         fpath = work_queue.get()
         if not fpath:
@@ -75,7 +75,7 @@ def get_fpaths(dpath):
     return fpaths
 
 
-def process(dpath_in, dpath_out, num_workers, splits):
+def process(dpath_in, dpath_out, num_workers, splits, timeouts):
 
     if not os.path.exists(dpath_out):
         os.makedirs(dpath_out)
@@ -87,7 +87,7 @@ def process(dpath_in, dpath_out, num_workers, splits):
     work_queue, result_queue = mp.Queue(), mp.Queue(num_workers * 10)
     processes = []
     for _ in range(max(1, num_workers)):
-        p = mp.Process(target=_worker_loop, args=(work_queue, result_queue))
+        p = mp.Process(target=_worker_loop, args=(work_queue, result_queue, timeouts))
         p.start()
         processes.append(p)
     for fpath in fpaths:
@@ -147,6 +147,9 @@ def main():
     parser.add_argument('-c', '--chunk', type=int, default=None,
                         help='Create arbitrary number of files containing `chunk` articles each.')
 
+    parser.add_argument('-', '--timeout', type=int, nargs='*', default=[5, 5, 10],
+                        help='Timeouts (in seconds) to try before moving on to next url when downloading.')
+
     parser.add_argument(
         '--num-workers',
         type=int,
@@ -175,7 +178,8 @@ def main():
         dpath_in=args.input,
         dpath_out=args.output,
         num_workers=args.num_workers,
-        splits=splits
+        splits=splits,
+        timeouts=args.timeouts
     )
 
 if __name__ == '__main__':
