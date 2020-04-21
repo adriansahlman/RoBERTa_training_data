@@ -138,7 +138,11 @@ python -m newsplease.examples.commoncrawl
 ```
 
 ### WEBTEXT
-I have not looked at this dataset yet but I will probably be using [openwebtext](https://github.com/jcpeterson/openwebtext).
+After testing, this data needs some heavy cleaning before it can be used. The results contain multiple languages, scrapes all kinds of paragraphs from sidebars and such, as well as running into sites that are blocked unless using cookies.
+I do not have the time to fix this, feel free to contact me if you have a better way of using this data.
+
+Download [the URL files](https://mega.nz/#F!EZZD0YwJ!9_PlEQzdMVLaNdKv_ICNVQ)
+Use the script `webtext.py` to download and save the content of the urls.
 
 ### STORIES
 Install gsutil
