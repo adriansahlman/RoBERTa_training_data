@@ -3,6 +3,7 @@ import multiprocessing as mp
 import signal
 import bs4
 import newspaper
+import unicodedata
 
 
 class TimeoutException(Exception):
@@ -10,22 +11,27 @@ class TimeoutException(Exception):
 
 
 def sig_handler_alarm(signum, frame):
-    raise TimeoutException()
+    raise TimeoutError()
 
 
 signal.signal(signal.SIGALRM, sig_handler_alarm)
 
 
-def scare_url(url, timeout):
+def scrape_url(url, timeout, min_paragraph_len=4):
     if timeout:
         signal.alarm(timeout)
     try:
         article = newspaper.Article(url, fetch_images=False)
         article.download()
         html = article.html
-        text, count = find_and_filter_tag("p", soup)
-        return text
-    except:
+        soup = bs4.BeautifulSoup(html, "lxml")
+        candidates = soup.find_all('p')
+        candidates = [unicodedata.normalize("NFKD", x.string) for x in candidates if x.string is not None]
+        candidates = [y.strip() for y in candidates if len(y.split(" ")) >= min_paragraph_len]
+        return candidates
+    except TimeoutError:
+        raise
+    except Exception as e:
         return None
     finally:
         signal.alarm(0)
@@ -42,7 +48,7 @@ def get_fpaths(dpath):
     return fpaths
 
 
-def _worker_loop(work_queue, result_queue, timeouts):
+def _worker_loop(work_queue, result_queue, timeouts, min_paragraph_len=4):
     while True:
         fpath = work_queue.get()
         if not fpath:
@@ -55,7 +61,7 @@ def _worker_loop(work_queue, result_queue, timeouts):
                 doc = None
                 for timeout in timeouts:
                     try:
-                        doc = scrape_url(url, timeout)
+                        doc = scrape_url(url, timeout, min_paragraph_len)
                         break
                     except TimeoutError:
                         continue
@@ -75,7 +81,7 @@ def get_fpaths(dpath):
     return fpaths
 
 
-def process(dpath_in, dpath_out, num_workers, splits, timeouts):
+def process(dpath_in, dpath_out, num_workers, splits, timeouts, min_paragraph_len=4):
 
     if not os.path.exists(dpath_out):
         os.makedirs(dpath_out)
@@ -87,7 +93,7 @@ def process(dpath_in, dpath_out, num_workers, splits, timeouts):
     work_queue, result_queue = mp.Queue(), mp.Queue(num_workers * 10)
     processes = []
     for _ in range(max(1, num_workers)):
-        p = mp.Process(target=_worker_loop, args=(work_queue, result_queue, timeouts))
+        p = mp.Process(target=_worker_loop, args=(work_queue, result_queue, timeouts, min_paragraph_len))
         p.start()
         processes.append(p)
     for fpath in fpaths:
@@ -150,6 +156,9 @@ def main():
     parser.add_argument('-', '--timeout', type=int, nargs='*', default=[5, 5, 10],
                         help='Timeouts (in seconds) to try before moving on to next url when downloading.')
 
+    parser.add_argument('--min-paragraph-len', type=int, default=4,
+                        help='Any paragraph smaller than this is discarded.')
+
     parser.add_argument(
         '--num-workers',
         type=int,
@@ -179,7 +188,8 @@ def main():
         dpath_out=args.output,
         num_workers=args.num_workers,
         splits=splits,
-        timeouts=args.timeouts
+        timeouts=args.timeout,
+        min_paragraph_len=args.min_paragraph_len
     )
 
 if __name__ == '__main__':
