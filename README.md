@@ -87,9 +87,9 @@ my_local_download_dir_article = './cc_download_articles/'
 # hosts (if None or empty list, any host is OK)
 my_filter_valid_hosts = []  # example: ['elrancaguino.cl']
 # start date (if None, any date is OK as start date), as datetime
-my_filter_start_date = datetime.datetime(2016, 1, 1)
+my_filter_start_date = datetime.datetime(2016, 9, 1)
 # end date (if None, any date is OK as end date), as datetime
-my_filter_end_date = datetime.datetime(2016, 12, 31)
+my_filter_end_date = datetime.datetime(2019, 2, 28)
 # if date filtering is strict and news-please could not detect the date of an article, the article will be discarded
 my_filter_strict_date = True
 # if True, the script checks whether a file has been downloaded already and uses that file instead of downloading
@@ -109,8 +109,27 @@ my_number_of_extraction_processes = 28
 my_delete_warc_after_extraction = True
 # if True, will continue extraction from the latest fully downloaded but not fully extracted WARC files and then
 # crawling new WARC files. This assumes that the filter criteria have not been changed since the previous run!
-my_continue_process = False
+my_continue_process = True
 ############ END YOUR CONFIG #########
+```
+
+Change the callback function to filter out any non-english language:
+```
+def on_valid_article_extracted(article):
+    """
+    This function will be invoked for each article that was extracted successfully from the archived data and that
+    satisfies the filter criteria.
+    :param article:
+    :return:
+    """
+    # do whatever you need to do with the article (e.g., save it to disk, store it in ElasticSearch, etc.)
+
+    if article.__dict__.get('language', None) == 'en':
+        with open(__get_pretty_filepath(my_local_download_dir_article, article), 'w', encoding='utf-8') as outfile:
+            if my_json_export_style == 0:
+                json.dump(article.__dict__, outfile, default=str, separators=(',', ':'), ensure_ascii=False)
+            elif my_json_export_style == 1:
+                json.dump(article.__dict__, outfile, default=str, indent=4, sort_keys=True, ensure_ascii=False)
 ```
 
 Run the script (this takes multiple days to complete).
