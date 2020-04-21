@@ -145,6 +145,9 @@ def main():
     parser.add_argument('-s', '--splits', type=int, nargs='*', default=[],
                         help='Number of articles of each split.')
 
+    parser.add_argument('-c', '--chunk', type=int, default=None,
+                        help='Create arbitrary number of files containing `chunk` articles each.')
+
     parser.add_argument(
         '--num-workers',
         type=int,
@@ -155,8 +158,19 @@ def main():
 
     args = parser.parse_args()
 
-    splits = [(split, 'split{}.txt'.format(i + 1)) for i, split in enumerate(args.splits)]
-    splits.append((-1, 'remainder.txt'))
+    assert not args.splits or bool(args.splits) != bool(args.chunk), \
+        '`--splits` and `--chunk` are mutually exclusive!'
+
+    if args.chunk:
+        def yield_splits(chunk):
+            i = 1
+            while True:
+                yield chunk, 'split{}.txt'.format(i)
+                i += 1
+        splits = yield_splits(args.chunk)
+    else:
+        splits = [(split, 'split{}.txt'.format(i + 1)) for i, split in enumerate(args.splits)]
+        splits.append((-1, 'remainder.txt'))
 
     process(
         dpath_in=args.input,
